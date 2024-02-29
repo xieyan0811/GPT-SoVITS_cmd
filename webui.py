@@ -401,6 +401,8 @@ def open1a(inp_text,inp_wav_dir,exp_name,gpu_numbers,bert_pretrained_dir):
             )
             os.environ.update(config)
             cmd = '"%s" GPT_SoVITS/prepare_datasets/1-get-text.py'%python_exec
+            # xieyan adjust
+            cmd = '"%s" GPT_SoVITS/prepare_datasets/1-get-text.py %s %s %s %s %s %s %s %s %s'%(python_exec, inp_text, inp_wav_dir, exp_name, str(i_part), str(all_parts), gpu_names[i_part], opt_dir, bert_pretrained_dir, is_half)
             print(cmd)
             p = Popen(cmd, shell=True)
             ps1a.append(p)
@@ -458,6 +460,8 @@ def open1b(inp_text,inp_wav_dir,exp_name,gpu_numbers,ssl_pretrained_dir):
             )
             os.environ.update(config)
             cmd = '"%s" GPT_SoVITS/prepare_datasets/2-get-hubert-wav32k.py'%python_exec
+            # xieyan adjust
+            cmd = '"%s" GPT_SoVITS/prepare_datasets/2-get-hubert-wav32k.py %s %s %s %s %s %s %s %s %s'%(python_exec, inp_text, inp_wav_dir, exp_name, str(i_part), str(all_parts), gpu_names[i_part], ssl_pretrained_dir, "%s/%s"%(exp_root,exp_name), is_half)
             print(cmd)
             p = Popen(cmd, shell=True)
             ps1b.append(p)
@@ -506,6 +510,8 @@ def open1c(inp_text,exp_name,gpu_numbers,pretrained_s2G_path):
             )
             os.environ.update(config)
             cmd = '"%s" GPT_SoVITS/prepare_datasets/3-get-semantic.py'%python_exec
+            # xieyan adjust
+            cmd = '"%s" GPT_SoVITS/prepare_datasets/3-get-semantic.py %s %s %s %s %s %s %s %s %s'%(python_exec, inp_text, exp_name, str(i_part), str(all_parts), gpu_names[i_part], opt_dir, pretrained_s2G_path, "GPT_SoVITS/configs/s2.json", str(is_half))
             print(cmd)
             p = Popen(cmd, shell=True)
             ps1c.append(p)

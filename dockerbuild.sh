@@ -6,7 +6,7 @@ DATE=$(date +%Y%m%d)
 COMMIT_HASH=$(git rev-parse HEAD | cut -c 1-7)
 
 # 构建 full 版本的镜像
-docker build --build-arg IMAGE_TYPE=full -t breakstring/gpt-sovits:latest .
+docker build --build-arg IMAGE_TYPE=full --build-arg HTTP_PROXY=http://192.168.10.106:12346 --build-arg HTTPS_PROXY=http://192.168.10.106:12346 -t breakstring/gpt-sovits:latest .
 # 为同一个镜像添加带日期的标签
 docker tag breakstring/gpt-sovits:latest breakstring/gpt-sovits:dev-$DATE
 # 为同一个镜像添加带当前代码库Commit哈希值的标签

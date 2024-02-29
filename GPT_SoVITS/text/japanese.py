@@ -2,9 +2,11 @@
 import re
 import sys
 
-import pyopenjtalk
-
-
+try:
+    import pyopenjtalk
+except:
+    print('load pyopenjtalk failed')
+ 
 from text import symbols
 # Regular expression matching Japanese without punctuation marks:
 _japanese_characters = re.compile(

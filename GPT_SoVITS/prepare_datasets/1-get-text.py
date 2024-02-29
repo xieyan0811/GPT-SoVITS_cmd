@@ -2,6 +2,7 @@
 
 import os
 
+'''
 inp_text = os.environ.get("inp_text")
 inp_wav_dir = os.environ.get("inp_wav_dir")
 exp_name = os.environ.get("exp_name")
@@ -11,6 +12,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = os.environ.get("_CUDA_VISIBLE_DEVICES")
 opt_dir = os.environ.get("opt_dir")
 bert_pretrained_dir = os.environ.get("bert_pretrained_dir")
 is_half = eval(os.environ.get("is_half", "True"))
+'''
 import sys, numpy as np, traceback, pdb
 import os.path
 from glob import glob
@@ -20,11 +22,17 @@ import torch
 from transformers import AutoModelForMaskedLM, AutoTokenizer
 import numpy as np
 
-# inp_text=sys.argv[1]
-# inp_wav_dir=sys.argv[2]
-# exp_name=sys.argv[3]
-# i_part=sys.argv[4]
-# all_parts=sys.argv[5]
+# xieyan adjust cmdline
+inp_text=sys.argv[1]
+inp_wav_dir=sys.argv[2]
+exp_name=sys.argv[3]
+i_part=sys.argv[4]
+all_parts=sys.argv[5]
+os.environ["CUDA_VISIBLE_DEVICES"]=sys.argv[6]
+opt_dir = sys.argv[7]
+bert_pretrained_dir = sys.argv[8]
+is_half = sys.argv[9]
+
 # os.environ["CUDA_VISIBLE_DEVICES"]=sys.argv[6]#i_gpu
 # opt_dir="/data/docker/liujing04/gpt-vits/fine_tune_dataset/%s"%exp_name
 # bert_pretrained_dir="/data/docker/liujing04/bert-vits2/Bert-VITS2-master20231106/bert/chinese-roberta-wwm-ext-large"
@@ -32,6 +40,7 @@ import numpy as np
 from time import time as ttime
 import shutil
 
+print(inp_text, inp_wav_dir, exp_name, opt_dir, bert_pretrained_dir)
 
 def my_save(fea,path):#####fix issue: torch.save doesn't support chinese path
     dir=os.path.dirname(path)

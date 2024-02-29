@@ -8,17 +8,19 @@ services:
       - is_half=False
       - is_share=False
     volumes:
-      - ./output:/workspace/output
-      - ./logs:/workspace/logs
-      - ./SoVITS_weights:/workspace/SoVITS_weights
-      - ./reference:/workspace/reference
-    working_dir: /workspace
+      #- ./output:/workspace/output
+      #- ./logs:/workspace/logs
+      #- ./SoVITS_weights:/workspace/SoVITS_weights
+      #- ./reference:/workspace/reference
+      - /exports:/opt/xieyan/
+    working_dir: /opt/xieyan/git/GPT-SoVITS_240222/
     ports:
       - "9880:9880"
       - "9871:9871"
       - "9872:9872"
       - "9873:9873"
       - "9874:9874"
+      - "8822:8822"
     shm_size: 16G
     deploy:
       resources:
