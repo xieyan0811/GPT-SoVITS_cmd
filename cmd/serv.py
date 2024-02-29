@@ -120,7 +120,7 @@ import uvicorn
 from io import BytesIO
 import config as global_config
 
-from xieyan.inference import get_tts_wav, g_infer
+from inference import get_tts_wav, g_infer
 
 g_config = global_config.Config()
 

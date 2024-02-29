@@ -13,7 +13,7 @@ services:
       #- ./SoVITS_weights:/workspace/SoVITS_weights
       #- ./reference:/workspace/reference
       - /exports:/opt/xieyan/
-    working_dir: /opt/xieyan/git/GPT-SoVITS_240222/
+    working_dir: /opt/xieyan/git/GPT-SoVITS_cmd/
     ports:
       - "9880:9880"
       - "9871:9871"
