@@ -38,6 +38,23 @@ def is_empty(*items):  # 任意一项不为空返回False
             return False
     return True
 
+def find_files(dirname, keywords):
+    '''
+    在 dirname 下寻找文件，文件名包含所有 keywords 的所有文件
+    '''
+    ret = []
+    for root, dirs, files in os.walk(dirname):
+        for file in files:
+            found = True
+            for keyword in keywords:
+                if keyword not in file:
+                    found = False
+                    break
+            if found:
+                ret.append(os.path.join(root, file))
+    return ret
+
+
 def find_file(dirname, keywords):
     '''
     在 dirname 下寻找文件，文件名包含所有 keywords
@@ -55,6 +72,7 @@ def find_file(dirname, keywords):
 
 class ModelInfo:
     def __init__(self, args, config) -> None:
+        self.model_name = None # 设置成功后会被赋值
         self.sovits_path = args.sovits_path
         self.gpt_path = args.gpt_path
 
@@ -111,7 +129,7 @@ class ModelInfo:
         list_path = find_file('output/asr_opt/', [f'{model_name}.list.best'])
         print('path', gpt_path, sovits_path, list_path)
         if list_path is not None and gpt_path is not None and sovits_path is not None:
-            with open(list_path) as fp:
+            with open(list_path, "r", encoding="utf-8") as fp:
                 line = fp.readline().strip()
                 arr = line.split('|')
                 path = arr[0]
@@ -123,6 +141,7 @@ class ModelInfo:
                 self.text = text
                 self.language = language
                 print(f"set_model {model_name} successed")
+                self.model_name = model_name
                 return True
         print('set_model_info failed')
         return False
@@ -179,11 +198,30 @@ class InferenceModel:
         self.load_gpt_weights()
         
     def set_model_info(self, model_name):
+        print(f'set_model_info {model_name} {self.model_info.model_name}')
+        if model_name == self.model_info.model_name:
+            print(f"set_model_info, model_name {model_name} is already use")
+            return True
         if self.model_info.set_model_info(model_name):
             self.load_sovits_weights()
             self.load_gpt_weights()
             return True
         return False
+    
+    def get_model_list(self):
+        '''
+        获取模型列表
+        '''
+        path_list = find_files('output/asr_opt/', ['list.best'])
+        model_list = []
+        for path in path_list:
+            with open(path, "r", encoding="utf-8") as fp:
+                line = fp.readline().strip()
+                while line:
+                    arr = line.split('|')
+                    model_list.append(arr[1])
+                    line = fp.readline().strip()
+        return ",".join(model_list)
 
     def load_sovits_weights(self):
         sovits_path = self.model_info.sovits_path
@@ -349,7 +387,9 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language)
     '''
     t0 = ttime()
     prompt_text = prompt_text.strip("\n")
-    prompt_language, text = prompt_language, text.strip("\n")
+    if text is None:
+        return None
+    text = text.strip("\n")
     zero_wav = np.zeros(int(g_infer.hps.data.sampling_rate * 0.3), dtype=np.float16 if g_infer.is_half == True else np.float32)
     with torch.no_grad():
         wav16k, sr = librosa.load(ref_wav_path, sr=16000)
@@ -435,5 +475,6 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language)
         audio_opt.append(audio)
         audio_opt.append(zero_wav)
         t4 = ttime()
+    print('text length', len(text))
     print("%.3f\t%.3f\t%.3f\t%.3f" % (t1 - t0, t2 - t1, t3 - t2, t4 - t3))
     yield g_infer.hps.data.sampling_rate, (np.concatenate(audio_opt, 0) * 32768).astype(np.int16)

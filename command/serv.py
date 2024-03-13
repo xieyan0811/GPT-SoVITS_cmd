@@ -120,7 +120,7 @@ import uvicorn
 from io import BytesIO
 import config as global_config
 
-from inference import get_tts_wav, g_infer
+from command.inference import get_tts_wav, g_infer
 
 g_config = global_config.Config()
 
@@ -130,7 +130,7 @@ parser = argparse.ArgumentParser(description="GPT-SoVITS api")
 
 parser.add_argument("-s", "--sovits_path", type=str, default=g_config.sovits_path, help="SoVITS模型路径")
 parser.add_argument("-g", "--gpt_path", type=str, default=g_config.gpt_path, help="GPT模型路径")
-parser.add_argument("-m", "--model_name", type=str, default="", help="模型名称") # xieyan add
+parser.add_argument("-m", "--model_name", type=str, default="caicai", help="模型名称") # xieyan add
 parser.add_argument("-dr", "--default_refer_path", type=str, default="", help="默认参考音频路径")
 parser.add_argument("-dt", "--default_refer_text", type=str, default="", help="默认参考音频文本")
 parser.add_argument("-dl", "--default_refer_language", type=str, default="", help="默认参考音频语种")
@@ -146,7 +146,21 @@ parser.add_argument("-hp", "--half_precision", action="store_true", default=Fals
 parser.add_argument("-hb", "--hubert_path", type=str, default=g_config.cnhubert_path, help="覆盖config.cnhubert_path")
 parser.add_argument("-b", "--bert_path", type=str, default=g_config.bert_path, help="覆盖config.bert_path")
 
-args = parser.parse_args()
+#args = parser.parse_args()
+args = argparse.Namespace(model_name='caicai',
+                          sovits_path=g_config.sovits_path,
+                          gpt_path=g_config.gpt_path,
+                          default_refer_path='',
+                          default_refer_text='',
+                          default_refer_language='',
+                          device='cuda',
+                          bind_addr='0.0.0.0',
+                          port=9880,
+                          full_precision=False,
+                          half_precision=False,
+                          hubert_path=g_config.cnhubert_path,
+                          bert_path=g_config.bert_path)
+
 g_infer.load(g_config, args)
 
 port = args.port
@@ -179,10 +193,13 @@ def handle_set_model(gpt_path, sovits_path):
     g_infer.load_gpt_weights()
 
 
-def handle(refer_wav_path, prompt_text, prompt_language, text, text_language):
+def handle(refer_wav_path, prompt_text, prompt_language, text, text_language, model_name):
     '''
     合成音频
     '''
+    if model_name is not None:
+        g_infer.set_model_info(model_name)
+
     if (
             refer_wav_path == "" or refer_wav_path is None
             or prompt_text == "" or prompt_text is None
@@ -196,20 +213,21 @@ def handle(refer_wav_path, prompt_text, prompt_language, text, text_language):
         if not g_infer.model_info.is_ready():
             return JSONResponse({"code": 400, "message": "未指定参考音频且接口无预设"}, status_code=400)
 
+        
+    wav = BytesIO()
     with torch.no_grad():
         gen = get_tts_wav(
             refer_wav_path, prompt_text, prompt_language, text, text_language
         )
-        sampling_rate, audio_data = next(gen)
+        if gen is not None:
+            sampling_rate, audio_data = next(gen)
+            sf.write(wav, audio_data, sampling_rate, format="wav")
+            wav.seek(0)
 
-    wav = BytesIO()
-    sf.write(wav, audio_data, sampling_rate, format="wav")
-    wav.seek(0)
-
-    torch.cuda.empty_cache()
-    if args.device == "mps":
-        print('executed torch.mps.empty_cache()')
-        torch.mps.empty_cache()
+            torch.cuda.empty_cache()
+            if args.device == "mps":
+                print('executed torch.mps.empty_cache()')
+                torch.mps.empty_cache()
     return StreamingResponse(wav, media_type="audio/wav")
 
 app = FastAPI()
@@ -224,11 +242,24 @@ async def set_model_name(request: Request):
 
 @app.get("/set_model_name")
 async def set_model_name(model_name: str = None):
-    print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@', model_name)
     if g_infer.set_model_info(model_name):
         return JSONResponse({"code": 0, "message": "Success"}, status_code=200)
     else:
         return JSONResponse({"code": 400, "message": "未找到相关文件"}, status_code=400)
+
+@app.post("/get_status")
+async def get_status(request: Request):
+    model_name = g_infer.model_info.model_name
+    model_list = g_infer.get_model_list()
+    return JSONResponse({"code": 0, "model_name": model_name, "workers": 3,
+                         "model_list":model_list}, status_code=200)
+
+@app.get("/get_status")
+async def get_status():
+    model_name = g_infer.model_info.model_name
+    model_list = g_infer.get_model_list()
+    return JSONResponse({"code": 0, "model_name": model_name, "workers": 3,
+                         "model_list":model_list}, status_code=200)
 
 @app.post("/set_model")
 async def set_model(request: Request):
@@ -275,6 +306,7 @@ async def tts_endpoint(request: Request):
         json_post_raw.get("prompt_language"),
         json_post_raw.get("text"),
         json_post_raw.get("text_language"),
+        json_post_raw.get("model_name"),
     )
 
 
@@ -285,8 +317,9 @@ async def tts_endpoint(
         prompt_language: str = None,
         text: str = None,
         text_language: str = None,
+        model_name: str = None
 ):
-    return handle(refer_wav_path, prompt_text, prompt_language, text, text_language)
+    return handle(refer_wav_path, prompt_text, prompt_language, text, text_language, model_name)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host=host, port=port, workers=1)
+    uvicorn.run(app, host=host, port=port, workers=3)

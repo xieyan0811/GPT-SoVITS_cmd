@@ -82,4 +82,5 @@ def handle(refer_wav_path, prompt_text, prompt_language, text, text_language):
     
     return StreamingResponse(wav, media_type="audio/wav")
 
-handle(None, None, None, '代码补全就是根据代码的上下文预测代码缺失的部分，比如在IDE中，对鼠标位置的代码自动完成，文档自动生成等。', 'zh')
+for i in range(5):
+    handle(None, None, None, '代码补全就是根据代码的上下文预测代码缺失的部分，比如在IDE中，对鼠标位置的代码自动完成，文档自动生成等。', 'zh')

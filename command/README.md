@@ -17,3 +17,5 @@ train.sh	# 加：训练模型调用的脚本
 * 训练：. xieyan/train.sh
 * 推理：python xieyan/serv.py -m 模型名
 
+# 运行服务
+uvicorn command.serv:app --host 0.0.0.0 --port 9880 --workers 3
