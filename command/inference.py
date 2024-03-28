@@ -73,8 +73,8 @@ def find_file(dirname, keywords):
 class ModelInfo:
     def __init__(self, args, config) -> None:
         self.model_name = None # 设置成功后会被赋值
-        self.sovits_path = args.sovits_path
-        self.gpt_path = args.gpt_path
+        self.sovits_path = args['sovits_path']
+        self.gpt_path = args['gpt_path']
 
         if self.sovits_path == "":
             self.sovits_path = config.pretrained_sovits_path
@@ -83,11 +83,11 @@ class ModelInfo:
             self.gpt_path = config.pretrained_gpt_path
             print(f"[WARN] 未指定GPT模型路径, fallback后当前值: {self.gpt_path}")
         
-        self.path = args.default_refer_path
-        self.text = args.default_refer_text
-        self.language = args.default_refer_language
+        self.path = args['default_refer_path']
+        self.text = args['default_refer_text']
+        self.language = args['default_refer_language']
 
-        model_name = args.model_name
+        model_name = args['model_name']
         if model_name != "": # 优先级最高
             self.set_model_info(model_name)
 
@@ -166,19 +166,19 @@ class InferenceModel:
         '''
         self.model_info = ModelInfo(args, config)
 
-        self.device = args.device
+        self.device = args['device']
         self.is_half = config.is_half
-        if args.full_precision:
+        if args['full_precision']:
             self.is_half = False
-        if args.half_precision:
+        if args['half_precision']:
             self.is_half = True
-        if args.full_precision and args.half_precision:
+        if args['full_precision'] and ['args.half_precision']:
             self.is_half = config.is_half
 
         print(f"[INFO] 半精: {self.is_half}")
 
-        cnhubert_base_path = args.hubert_path
-        bert_path = args.bert_path
+        cnhubert_base_path = args['hubert_path']
+        bert_path = args['bert_path']
 
         cnhubert.cnhubert_base_path = cnhubert_base_path
         self.bert_tokenizer = AutoTokenizer.from_pretrained(bert_path)

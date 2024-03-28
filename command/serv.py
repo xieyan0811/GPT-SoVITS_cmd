@@ -113,7 +113,7 @@ sys.path.append("%s/GPT_SoVITS" % (now_dir))
 import signal
 import torch
 import soundfile as sf
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, JSONResponse
 import uvicorn
 
@@ -121,10 +121,12 @@ from io import BytesIO
 import config as global_config
 
 from command.inference import get_tts_wav, g_infer
+from command.audio_tools import set_speed, do_asr
 
 g_config = global_config.Config()
 
 # AVAILABLE_COMPUTE = "cuda" if torch.cuda.is_available() else "cpu"
+TMP_DIR = '/tmp/'
 
 parser = argparse.ArgumentParser(description="GPT-SoVITS api")
 
@@ -161,7 +163,9 @@ args = argparse.Namespace(model_name='caicai',
                           hubert_path=g_config.cnhubert_path,
                           bert_path=g_config.bert_path)
 
-g_infer.load(g_config, args)
+dic_args = vars(args)
+
+g_infer.load(g_config, dic_args)
 
 port = args.port
 host = args.bind_addr
@@ -192,8 +196,9 @@ def handle_set_model(gpt_path, sovits_path):
     g_infer.model_info.gpt_path = gpt_path
     g_infer.load_gpt_weights()
 
+import tempfile
 
-def handle(refer_wav_path, prompt_text, prompt_language, text, text_language, model_name):
+def handle(refer_wav_path, prompt_text, prompt_language, text, text_language, model_name, speed):
     '''
     合成音频
     '''
@@ -213,8 +218,11 @@ def handle(refer_wav_path, prompt_text, prompt_language, text, text_language, mo
         if not g_infer.model_info.is_ready():
             return JSONResponse({"code": 400, "message": "未指定参考音频且接口无预设"}, status_code=400)
 
-        
-    wav = BytesIO()
+    
+    # 把wav换成一个临时文件
+    with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as temp:
+        wav = temp.name
+
     with torch.no_grad():
         gen = get_tts_wav(
             refer_wav_path, prompt_text, prompt_language, text, text_language
@@ -222,13 +230,16 @@ def handle(refer_wav_path, prompt_text, prompt_language, text, text_language, mo
         if gen is not None:
             sampling_rate, audio_data = next(gen)
             sf.write(wav, audio_data, sampling_rate, format="wav")
-            wav.seek(0)
 
             torch.cuda.empty_cache()
             if args.device == "mps":
                 print('executed torch.mps.empty_cache()')
                 torch.mps.empty_cache()
-    return StreamingResponse(wav, media_type="audio/wav")
+            if speed > 1.0:
+                set_speed(wav, wav, speed, format='wav')
+    ret = StreamingResponse(open(wav, "rb"), media_type="audio/wav")
+    os.remove(wav)
+    return ret
 
 app = FastAPI()
 
@@ -251,7 +262,7 @@ async def set_model_name(model_name: str = None):
 async def get_status(request: Request):
     model_name = g_infer.model_info.model_name
     model_list = g_infer.get_model_list()
-    return JSONResponse({"code": 0, "model_name": model_name, "workers": 3,
+    return JSONResponse({"code": 0, "model_name": model_name, "workers": os.environ.get('TTS_WORKERS', 2),
                          "model_list":model_list}, status_code=200)
 
 @app.get("/get_status")
@@ -296,6 +307,35 @@ async def change_refer(
 ):
     return handle_change(refer_wav_path, prompt_text, prompt_language)
 
+@app.post("/asr")
+async def asr(file: UploadFile = File(...)):
+    try:
+        contents = await file.read()
+        path = os.path.join(TMP_DIR, file.filename)
+        with open(path, "wb") as f:
+            f.write(contents)
+            text = do_asr(path)
+            os.remove(path)
+            return {'code':0, 'text':text}
+    except Exception as e:
+        print('failed to recognize: ', e)
+    return {'code':400, 'text':'识别失败'}
+
+@app.post("/adj_speed")
+# 接收文件和速度参数
+async def adj_speed(file: UploadFile = File(...), speed: float = Form(...)):
+    # 下载文件
+    print("speed", speed)
+    try:
+        contents = await file.read()
+        path = os.path.join(TMP_DIR, file.filename)
+        with open(path, "wb") as f:
+            f.write(contents)
+            set_speed(path, path, speed)
+            return StreamingResponse(open(path, "rb"), media_type="audio/mp3")
+    except Exception as e:
+        print('failed to adjust speed: ', e)
+    return {'code':400, 'text':'调整失败'}
 
 @app.post("/")
 async def tts_endpoint(request: Request):
@@ -307,8 +347,8 @@ async def tts_endpoint(request: Request):
         json_post_raw.get("text"),
         json_post_raw.get("text_language"),
         json_post_raw.get("model_name"),
+        json_post_raw.get("speed"),
     )
-
 
 @app.get("/")
 async def tts_endpoint(
@@ -317,9 +357,10 @@ async def tts_endpoint(
         prompt_language: str = None,
         text: str = None,
         text_language: str = None,
-        model_name: str = None
+        model_name: str = None,
+        speed: float = 1.0,
 ):
-    return handle(refer_wav_path, prompt_text, prompt_language, text, text_language, model_name)
+    return handle(refer_wav_path, prompt_text, prompt_language, text, text_language, model_name, speed)
 
 if __name__ == "__main__":
     uvicorn.run(app, host=host, port=port, workers=3)
