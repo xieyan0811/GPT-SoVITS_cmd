@@ -117,6 +117,7 @@ from fastapi import FastAPI, Request, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, JSONResponse
 import uvicorn
 
+import tempfile
 from io import BytesIO
 import config as global_config
 
@@ -195,8 +196,6 @@ def handle_set_model(gpt_path, sovits_path):
     g_infer.load_sovits_weights()
     g_infer.model_info.gpt_path = gpt_path
     g_infer.load_gpt_weights()
-
-import tempfile
 
 def handle(refer_wav_path, prompt_text, prompt_language, text, text_language, model_name, speed):
     '''
@@ -314,12 +313,16 @@ async def asr(file: UploadFile = File(...)):
         path = os.path.join(TMP_DIR, file.filename)
         with open(path, "wb") as f:
             f.write(contents)
-            text = do_asr(path)
+        ret, text = do_asr(path)
+        if os.path.exists(path):
             os.remove(path)
+        if ret:
             return {'code':0, 'text':text}
+        else:
+            return {'code':400, 'text':'识别失败'}
     except Exception as e:
         print('failed to recognize: ', e)
-    return {'code':400, 'text':'识别失败'}
+    return {'code':400, 'text':f'识别失败 {e}'}
 
 @app.post("/adj_speed")
 # 接收文件和速度参数
@@ -363,4 +366,4 @@ async def tts_endpoint(
     return handle(refer_wav_path, prompt_text, prompt_language, text, text_language, model_name, speed)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host=host, port=port, workers=3)
+    uvicorn.run(app, host=host, port=port)

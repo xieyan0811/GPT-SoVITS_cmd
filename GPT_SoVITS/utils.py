@@ -18,7 +18,8 @@ logging.getLogger("matplotlib").setLevel(logging.ERROR)
 
 MATPLOTLIB_FLAG = False
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO) # xieyan 240329 edit
+#logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging
 
 

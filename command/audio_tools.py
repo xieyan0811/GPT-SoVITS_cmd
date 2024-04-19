@@ -23,9 +23,14 @@ def set_speed(path_in, path_out, rate, format='mp3'):
 
 def do_asr(path_in):
     path_out = path_in.replace('.mp3', '.txt')
-    cmd = f'python {ROOT_DIR}/tools/asr/funasr_asr_file.py --input {path_in} --output {path_out}'
-    os.system(cmd)
-    with open(path_out, 'r') as f:
+    cmd = f'python {ROOT_DIR}/tools/asr/funasr_asr_file.py --input "{path_in}" --output "{path_out}"'
+    # 运行程序，并获取程序是否执行成功
+    status = os.system(cmd)
+    print('@@@@ run command return ', status)
+    if status != 0:
+        return False, ''
+    with open(path_out, 'r', encoding='utf-8') as f:
         text = f.read()
     os.remove(path_out)
-    return text
+    print('text', text[:50])
+    return True, text
